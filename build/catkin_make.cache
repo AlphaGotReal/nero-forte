@@ -1,0 +1,2 @@
+base_chalo:simulation
+-DCATKIN_DEVEL_PREFIX=/home/straw/Documents/Spice/orange/devel -DCMAKE_INSTALL_PREFIX=/home/straw/Documents/Spice/orange/install -G Unix Makefiles
