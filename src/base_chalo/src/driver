@@ -42,19 +42,19 @@ class driver():
         self.goal_marker.color.b = 0
         self.goal_marker.color.a = 1
 
-        self.threshold = 1 
+        self.threshold = 1
 
         self.agent = agent(
-            input_length=4,
+            input_length=5,
             n_actions=len(actions.activity),
-            batch_size=64,
+            batch_size=float("inf"),
             alpha=0.001,
             gamma=0.99,
             epsilon=1,
             reuse=False
         )
 
-        self.decay = 0.9999
+        self.decay = 0.999
         self.return_ = 0
         self.episode = 1
 
@@ -106,7 +106,8 @@ class driver():
             print(f"{type(e)}: {e}")
 
     def mainloop(self):
-        rate = rospy.Rate(3)
+        rate = rospy.Rate(8)
+        start_rate = rospy.Rate(3)
         while not rospy.is_shutdown():
             try:
                 if (self.goal is None):
@@ -117,7 +118,10 @@ class driver():
 
                 dx = self.goal[0] - self.bot.position.x
                 dy = self.goal[1] - self.bot.position.y
-                new_state = [dx, dy, self.velocity.linear.x, self.velocity.angular.z]
+                bot_steer = np.arctan2(self.bot.orientation.z, self.bot.orientation.w) * 2
+                goal_steer = np.arctan2(dy, dx) * 2
+                dtheta = goal_steer - bot_steer
+                new_state = [dx, dy, dtheta, self.velocity.linear.x, self.velocity.angular.z]
 
                 if (self.state is None):
                     self.state = new_state
@@ -126,11 +130,11 @@ class driver():
                 reached = self.reached()
                 lost = self.lost(3)
 
-                reward = int(reached) - 1.5
+                reward = 2 if reached else (-1 if lost else -0.5)
                 done = reward or lost
 
                 action = self.agent.choose_action(self.state)
-                v, w = actions.get(action)
+                v, w = actions.get(action, echo=False)
                 self.velocity.linear.x = v
                 self.velocity.angular.z = w
                 self.cmd_pub.publish(self.velocity)
@@ -145,9 +149,12 @@ class driver():
                 if (reached or lost):
                     self.goal = None
                     self.reset_world()
-                    rate.sleep()
+                    start_rate.sleep()
                     self.velocity = Twist()
                     self.agent.learn()
+                    self.agent.memory.data = []
+                    self.agent.memory.length = 0
+                    self.agent.update_main_model()
                     start = "\033[96m" if reached else "\033[93m"
                     print(f"{start}episode: {self.episode} return: {self.return_} exploration: {self.agent.epsilon}\033[0m")
                     reached = False
