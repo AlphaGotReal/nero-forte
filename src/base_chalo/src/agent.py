@@ -13,13 +13,13 @@ class model(nn.Module):
         super(model, self).__init__()
         slope = 0
         self.network = nn.Sequential(
-            nn.Linear(input_length, 128),
+            nn.Linear(input_length, 12),
             nn.LeakyReLU(slope),
 
-            nn.Linear(128, 128),
+            nn.Linear(12, 12),
             nn.LeakyReLU(slope),
 
-            nn.Linear(128, n_actions),
+            nn.Linear(12, n_actions),
         )
 
     def forward(self, x):

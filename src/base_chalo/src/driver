@@ -16,9 +16,9 @@ from nav_msgs.msg import Odometry
 
 from agent import agent, actions
 
-actions.linear_vel_range = (0.1, 0.3)
-actions.linear_vel_buckets = 5
-actions.angular_vel_range = (-0.5, 0.5)
+actions.linear_vel_range = (0.3, 0.4)
+actions.linear_vel_buckets = 2
+actions.angular_vel_range = (-0.8, 0.8)
 actions.angular_vel_buckets = 5
 actions.update()
 
@@ -122,7 +122,7 @@ class driver():
                 goal_steer = np.arctan2(dy, dx) * 2
                 dtheta = goal_steer - bot_steer
                 new_state = [dx, dy, dtheta, self.velocity.linear.x, self.velocity.angular.z]
-
+                #print(new_state)
                 if (self.state is None):
                     self.state = new_state
                     continue
@@ -133,8 +133,8 @@ class driver():
                 reward = 2 if reached else (-1 if lost else -0.5)
                 done = reward or lost
 
-                action = self.agent.choose_action(self.state)
-                v, w = actions.get(action, echo=False)
+                action = self.agent.choose_action(self.state, echo=False)
+                v, w = actions.get(action)
                 self.velocity.linear.x = v
                 self.velocity.angular.z = w
                 self.cmd_pub.publish(self.velocity)
@@ -149,7 +149,7 @@ class driver():
                 if (reached or lost):
                     self.goal = None
                     self.reset_world()
-                    start_rate.sleep()
+                    rate.sleep()
                     self.velocity = Twist()
                     self.agent.learn()
                     self.agent.memory.data = []
@@ -162,6 +162,7 @@ class driver():
                     self.episode += 1
                     self.return_ = 0
                     self.agent.save("go.pth")
+                    self.state = None
                     self.goal = self.gen_goal(2, (-0.5, 0.5))
                     
             except KeyboardInterrupt:
