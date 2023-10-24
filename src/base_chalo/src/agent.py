@@ -11,15 +11,15 @@ import sys
 class model(nn.Module):
     def __init__(self, input_length, n_actions):
         super(model, self).__init__()
-        slope = 0
+        slope = 0.1
         self.network = nn.Sequential(
-            nn.Linear(input_length, 12),
+            nn.Linear(input_length, 128),
             nn.LeakyReLU(slope),
 
-            nn.Linear(12, 12),
+            nn.Linear(128, 128),
             nn.LeakyReLU(slope),
 
-            nn.Linear(12, n_actions),
+            nn.Linear(128, n_actions),
         )
 
     def forward(self, x):
@@ -108,6 +108,26 @@ class agent():
             
     def store(self, *transition):
         self.memory.push(*transition)
+
+    def train(self, state, new_state, action, reward, done):
+        state = torch.tensor([state], dtype=torch.float32)
+        new_state = torch.tensor([new_state], dtype=torch.float32)
+        action = int(action)
+        reward = torch.tensor(reward, dtype=torch.float32)
+        done = torch.tensor(done, dtype=torch.float32)
+
+        curr_q = self.temp_model(state)
+
+        with torch.no_grad():
+            next_q = self.main_model(new_state)
+            max_future_q = next_q.max()
+            target_q = curr_q.clone()
+            target_q[0, action] = reward + (1 - done) * self.gamma * max_future_q
+
+        loss = self.loss_criteria(curr_q, target_q)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
     def learn(self):
         length = min(self.memory.batch_size, len(self.memory))
