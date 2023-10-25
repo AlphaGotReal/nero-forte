@@ -25,7 +25,6 @@ class model(nn.Module):
     def forward(self, x):
         return self.network(x)
 
-
 class actions():
     linear_vel_range = (-0.5, 2)
     linear_vel_buckets = 5

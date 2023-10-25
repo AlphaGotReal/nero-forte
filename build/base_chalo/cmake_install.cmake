@@ -52,3 +52,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/base_chalo" TYPE FILE FILES "/home/straw/Documents/Spice/orange/src/base_chalo/package.xml")
 endif()
 
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/base_chalo" TYPE PROGRAM FILES "/home/straw/Documents/Spice/orange/build/base_chalo/catkin_generated/installspace/driver")
+endif()
+

@@ -79,7 +79,6 @@
 /home/straw/Documents/Spice/orange/build/base_chalo/CMakeFiles/actionlib_msgs_generate_messages_eus.dir
 /home/straw/Documents/Spice/orange/build/base_chalo/CMakeFiles/geometry_msgs_generate_messages_nodejs.dir
 /home/straw/Documents/Spice/orange/build/base_chalo/CMakeFiles/tf2_msgs_generate_messages_lisp.dir
-/home/straw/Documents/Spice/orange/build/base_chalo/CMakeFiles/goal_generation.dir
 /home/straw/Documents/Spice/orange/build/base_chalo/CMakeFiles/tf2_msgs_generate_messages_nodejs.dir
 /home/straw/Documents/Spice/orange/build/base_chalo/CMakeFiles/test.dir
 /home/straw/Documents/Spice/orange/build/base_chalo/CMakeFiles/actionlib_msgs_generate_messages_lisp.dir

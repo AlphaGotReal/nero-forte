@@ -91,9 +91,9 @@ endif()
 # flag project as catkin-based to distinguish if a find_package()-ed project is a catkin project
 set(base_chalo_FOUND_CATKIN_PROJECT TRUE)
 
-if(NOT "/home/straw/Documents/Spice/orange/src/base_chalo/include " STREQUAL " ")
+if(NOT " " STREQUAL " ")
   set(base_chalo_INCLUDE_DIRS "")
-  set(_include_dirs "/home/straw/Documents/Spice/orange/src/base_chalo/include")
+  set(_include_dirs "")
   if(NOT " " STREQUAL " ")
     set(_report "Check the issue tracker '' and consider creating a ticket if the problem has not been reported yet.")
   elseif(NOT " " STREQUAL " ")
@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/straw/Documents/Spice/orange/devel/lib;/home/straw/Documents/Spice/orange/devel/lib;/opt/ros/noetic/lib)
+    foreach(path /home/straw/Documents/Spice/orange/devel/lib;/opt/ros/noetic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)

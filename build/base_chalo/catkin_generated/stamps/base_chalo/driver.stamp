@@ -4,7 +4,7 @@ import os
 import sys
 import time
 import numpy as np
-sys.path.append(f"{os.getcwd()}/src/base_chalo/src")
+sys.path.append("/home/straw/Documents/Spice/orange/src/base_chalo/src")
 
 import rospy
 
@@ -16,10 +16,10 @@ from nav_msgs.msg import Odometry
 
 from agent import agent, actions
 
-actions.linear_vel_range = (0.3, 0.3)
-actions.linear_vel_buckets = 1
+actions.linear_vel_range = (0.3, 0.4)
+actions.linear_vel_buckets = 2
 actions.angular_vel_range = (-1, 1)
-actions.angular_vel_buckets = 3
+actions.angular_vel_buckets = 11
 actions.update()
 
 class driver():
@@ -60,7 +60,6 @@ class driver():
 
         self.velocity = Twist()
         self.state = None
-        self.action = None
 
         self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odom)
 
@@ -109,64 +108,70 @@ class driver():
         rate = rospy.Rate(15)
         start_rate = rospy.Rate(1)
         while not rospy.is_shutdown():
-            if (self.goal is None):
-                self.goal = self.gen_goal(2, (-np.pi, np.pi))
-                continue
+            try:
+                if (self.goal is None):
+                    self.goal = self.gen_goal(2, (-0.5, 0.5))
+                    continue
 
-            self.sphere_pub.publish(self.goal_marker)
+                self.sphere_pub.publish(self.goal_marker)
 
-            dx = self.goal[0] - self.bot.position.x
-            dy = self.goal[1] - self.bot.position.y
-            bot_steer = np.arctan2(self.bot.orientation.z, self.bot.orientation.w) * 2
-            goal_steer = np.arctan2(dy, dx) * 2
-            dtheta = goal_steer - bot_steer
-            new_state = [np.sin(dtheta), np.cos(dtheta), self.velocity.linear.x, self.velocity.angular.z]
+                dx = self.goal[0] - self.bot.position.x
+                dy = self.goal[1] - self.bot.position.y
+                bot_steer = np.arctan2(self.bot.orientation.z, self.bot.orientation.w) * 2
+                goal_steer = np.arctan2(dy, dx) * 2
+                dtheta = goal_steer - bot_steer
+                new_state = [np.sin(dtheta), np.cos(dtheta), self.velocity.linear.x, self.velocity.angular.z]
+                #print(new_state)
+                if (self.state is None):
+                    self.state = new_state
+                    continue
 
-            action = self.agent.choose_action(new_state, echo=False)
-            v, w = actions.get(action)
-            self.velocity.linear.x = v
-            self.velocity.angular.z = w
-            self.cmd_pub.publish(self.velocity)
+                reached = self.reached()
+                lost = self.lost(3)
 
-            #print(new_state)
-            if (None in (self.state, self.action)):
-                self.action = action
+                reward = 10 if reached else -1
+                done = reached or lost
+
+                action = self.agent.choose_action(self.state, echo=False)
+                v, w = actions.get(action)
+                self.velocity.linear.x = v
+                self.velocity.angular.z = w
+                self.cmd_pub.publish(self.velocity)
+
+                #self.agent.store(self.state, new_state, action, reward, int(done))
+                self.agent.train(self.state, new_state, action, reward, int(done))
+                open("transition.txt", "a").write(f"""curr state: {self.state}
+next state: {new_state}
+action: {action}
+reward: {reward}
+terminal boolean: {done}\n\n""")
+                rate.sleep()
                 self.state = new_state
-                continue
+                self.return_ += reward
 
-            reached = self.reached()
-            lost = self.lost(3)
+                self.agent.epsilon = self.agent.epsilon * self.decay
 
-            reward = 1 if reached else -0.1
-            done = reached or lost
+                if (reached or lost):
+                    self.reset_world()
+                    #self.agent.learn()
+                    #self.agent.memory.data = []
+                    #self.agent.memory.length = 0
+                    self.agent.update_main_model()
+                    start = "\033[96m" if reached else "\033[93m"
+                    print(f"{start}episode: {self.episode} return: {self.return_} exploration: {self.agent.epsilon}\033[0m")
+                    reached = False
+                    lost = False
+                    self.episode += 1
+                    self.return_ = 0
+                    self.agent.save("go.pth")
+                    self.state = None
+                    time.sleep(1)
+                    self.bot = None
+                    self.goal = None
+                    
+            except KeyboardInterrupt:
+                sys.exit(1)
 
-            #self.agent.store(self.state, new_state, action, reward, int(done))
-            self.agent.train(self.state, new_state, self.action, reward, int(done))
-            rate.sleep()
-            self.state = new_state
-            self.action = action
-            self.return_ += reward
-
-            self.agent.epsilon = self.agent.epsilon * self.decay
-
-            if (reached or lost):
-                self.reset_world()
-                #self.agent.learn()
-                #self.agent.memory.data = []
-                #self.agent.memory.length = 0
-                self.agent.update_main_model()
-                start = "\033[96m" if reached else "\033[93m"
-                print(f"{start}episode: {self.episode} return: {self.return_} exploration: {self.agent.epsilon}\033[0m")
-                reached = False
-                lost = False
-                self.episode += 1
-                self.return_ = 0
-                self.agent.save("test.pth")
-                self.state = None
-                self.action = None
-                time.sleep(1)
-                self.bot = None
-                self.goal = None
 
 if __name__ == "__main__":
     d = driver()

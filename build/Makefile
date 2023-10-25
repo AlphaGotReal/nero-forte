@@ -701,19 +701,6 @@ tf2_msgs_generate_messages_lisp/fast:
 .PHONY : tf2_msgs_generate_messages_lisp/fast
 
 #=============================================================================
-# Target rules for targets named goal_generation
-
-# Build rule for target.
-goal_generation: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 goal_generation
-.PHONY : goal_generation
-
-# fast build rule for target.
-goal_generation/fast:
-	$(MAKE) -f base_chalo/CMakeFiles/goal_generation.dir/build.make base_chalo/CMakeFiles/goal_generation.dir/build
-.PHONY : goal_generation/fast
-
-#=============================================================================
 # Target rules for targets named tf2_msgs_generate_messages_nodejs
 
 # Build rule for target.
@@ -806,7 +793,6 @@ help:
 	@echo "... actionlib_msgs_generate_messages_eus"
 	@echo "... geometry_msgs_generate_messages_nodejs"
 	@echo "... tf2_msgs_generate_messages_lisp"
-	@echo "... goal_generation"
 	@echo "... tf2_msgs_generate_messages_nodejs"
 	@echo "... actionlib_msgs_generate_messages_lisp"
 	@echo "... actionlib_msgs_generate_messages_cpp"
