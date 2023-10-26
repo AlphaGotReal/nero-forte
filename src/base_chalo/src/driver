@@ -42,19 +42,18 @@ class driver():
         self.goal_marker.color.b = 0
         self.goal_marker.color.a = 1
 
-        self.threshold = 0.1
+        self.threshold = 1
 
         self.agent = agent(
             input_length=4,
             n_actions=len(actions.activity),
-            #batch_size=float("inf"),
             alpha=0.001,
-            gamma=0.99,
+            gamma=0.95,
             epsilon=0,
-            reuse='test.pth'
+            reuse=False
         )
 
-        self.decay = 0.999
+        self.decay = 0.9999
         self.return_ = 0
         self.episode = 1
 
@@ -111,7 +110,7 @@ class driver():
         start_rate = rospy.Rate(1)
         while not rospy.is_shutdown():
             if (self.goal is None):
-                self.goal = self.gen_goal(5, (-np.pi/2, np.pi/2))
+                self.goal = self.gen_goal(2, (-np.pi/2, np.pi/2))
                 continue
 
             self.sphere_pub.publish(self.goal_marker)
@@ -136,12 +135,12 @@ class driver():
                 continue
 
             reached = self.reached()
-            lost = self.lost(7)
+            lost = self.lost(3)
 
-            reward = 3 if reached else (-0.5 if dx*dx + dy*dy < self.distance else -2)
+            reward = 3 if reached else (-0.2 if dx*dx + dy*dy < self.distance else -2)
             done = reached or lost
 
-            #self.agent.train(self.state, new_state, self.action, reward, int(done))
+            self.agent.train(self.state, new_state, self.action, reward, int(done))
             rate.sleep()
             self.state = new_state
             self.action = action
@@ -152,14 +151,14 @@ class driver():
 
             if (reached or lost):
                 self.reset_world()
-                #self.agent.update_main_model()
+                self.agent.update_main_model()
                 start = "\033[96m" if reached else "\033[93m"
                 print(f"{start}episode: {self.episode} return: {self.return_} exploration: {self.agent.epsilon}\033[0m")
                 reached = False
                 lost = False
                 self.episode += 1
                 self.return_ = 0
-                #self.agent.save(f"{sys.argv[1]}.pth")
+                self.agent.save(f"{sys.argv[1]}.pth")
                 self.state = None
                 self.action = None
                 self.distance = None
