@@ -10,7 +10,7 @@ import torch
 from agent import agent, model, actions
 
 import rospy
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseStamped
 from nav_msgs.msg import Odometry
 
 actions.linear_vel_range = (0.3, 0.3)
@@ -21,18 +21,25 @@ actions.angular_vel_bucket = 3
 rospy.init_node("tester")
 pub = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
 bot = None
+goal = None
+
 def get_odom(x):
     global bot
     bot = x.pose.pose
 
-sub = rospy.Subscriber("/odom", Odometry)
+def get_goal(x):
+    global goal
+    goal = x
+
+bot_sub = rospy.Subscriber("/odom", Odometry)
+goal_sub = rospy.Subscriber("/move_base_simple/goal", PoseStamped)
 
 agent = model(4, len(actions.activity))
-agent.load_state_dict(torch.load(sys.argv[1]))
+agent.load_state_dict(torch.load(f"{sys.argv[1])}.pth")
 
 while not rospy.is_shutdown():
     try:
-
+        
     except KeyboardInterrupt:
         sys.exit(1)
 
