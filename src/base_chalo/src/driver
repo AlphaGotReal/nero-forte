@@ -16,7 +16,7 @@ from nav_msgs.msg import Odometry
 
 from agent import agent, actions
 
-actions.linear_vel_range = (0.3, 0.3)
+actions.linear_vel_range = (0.4, 0.4)
 actions.linear_vel_buckets = 1
 actions.angular_vel_range = (-1, 1)
 actions.angular_vel_buckets = 5
@@ -42,18 +42,18 @@ class driver():
         self.goal_marker.color.b = 0
         self.goal_marker.color.a = 1
 
-        self.threshold = 0.1
+        self.threshold = 0.2
 
         self.agent = agent(
             input_length=4,
             n_actions=len(actions.activity),
             alpha=0.0003,
-            gamma=0.95,
-            epsilon=0,
-            reuse=False#"test.pth"
+            gamma=0.99,
+            epsilon=0.1,
+            reuse="working.pth"
         )
 
-        self.decay = 0.9999
+        self.decay = 1#0.9999
         self.return_ = 0
         self.episode = 1
 
@@ -111,7 +111,7 @@ class driver():
         start_rate = rospy.Rate(1)
         while not rospy.is_shutdown():
             if (self.goal is None):
-                self.goal = self.gen_goal(2, (-np.pi/4, np.pi/4))
+                self.goal = self.gen_goal(5, (-np.pi, np.pi))
                 continue
 
             self.sphere_pub.publish(self.goal_marker)
@@ -119,7 +119,7 @@ class driver():
             dx = self.goal[0] - self.bot.position.x
             dy = self.goal[1] - self.bot.position.y
             bot_steer = np.arctan2(self.bot.orientation.z, self.bot.orientation.w) * 2
-            goal_steer = np.arctan2(dy, dx) * 2
+            goal_steer = np.arctan2(dy, dx)
             dtheta = goal_steer - bot_steer
             new_state = [np.sin(dtheta), np.cos(dtheta), self.velocity.linear.x, self.velocity.angular.z]
 
@@ -137,7 +137,7 @@ class driver():
                 continue
 
             reached = self.reached()
-            lost = self.lost(3)
+            lost = self.lost(7)
 
             reward = 1.1 if reached else (-0.1 if abs(dtheta) < abs(self.dtheta) else -1)
             done = reached or lost
