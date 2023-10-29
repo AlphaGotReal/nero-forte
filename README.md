@@ -6,25 +6,17 @@ Nero-Forte is a reinforcement learning module designed to assist the TurtleBot3 
 
 ### Setup
 
-1. Create a workspace and navigate to it:
-
-    ```shell
-    mkdir ws && cd ws
-    ```
-
-2. Clone the Nero-Forte repository:
+1. Clone the Nero-Forte repository:
 
     ```shell
     git clone https://github.com/AlphaGotReal/nero-forte.git
     ```
-
-3. Build the project using Catkin:
+2. Build the project using Catkin:
 
     ```shell
-    rm -rf build devel && catkin_make
+    cd nero-forte && rm -rf build devel && catkin_make
     ```
-
-4. Source the workspace:
+3. Source the workspace:
 
     ```shell
     source devel/setup.bash
@@ -37,7 +29,7 @@ To launch the simulation environment:
 ```shell
 roslaunch simulation sim.launch
 ```
-To Train and test weights
+To Train and test weights:
 ```shell
 rosrun base_chalo driver $NAME_OF_FILE.pth #this is to train the model
 rosrun base_chalo tester $NAME_OF_FILE.pth #this is to test the model
