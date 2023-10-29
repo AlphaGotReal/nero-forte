@@ -40,4 +40,4 @@ roslaunch simulation sim.launch
 To Train and test weights
 ```shell
 rosrun base_chalo driver $NAME_OF_FILE.pth #this is to train the model
-rosrun base_chalo $NAME_OF_FILE.pth #this is to test the model
+rosrun base_chalo tester $NAME_OF_FILE.pth #this is to test the model
