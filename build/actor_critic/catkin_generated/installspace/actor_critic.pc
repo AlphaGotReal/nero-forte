@@ -1,0 +1,8 @@
+prefix=/home/straw/Documents/ultimate-reinforcement-learning/install
+
+Name: actor_critic
+Description: Description of actor_critic
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

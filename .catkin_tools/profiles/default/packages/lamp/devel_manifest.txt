@@ -1,0 +1,5 @@
+lamp
+/home/straw/Documents/ultimate-reinforcement-learning/devel/.private/lamp/cmake.lock /home/straw/Documents/ultimate-reinforcement-learning/devel/./cmake.lock
+/home/straw/Documents/ultimate-reinforcement-learning/devel/.private/lamp/share/lamp/cmake/lampConfig-version.cmake /home/straw/Documents/ultimate-reinforcement-learning/devel/share/lamp/cmake/lampConfig-version.cmake
+/home/straw/Documents/ultimate-reinforcement-learning/devel/.private/lamp/share/lamp/cmake/lampConfig.cmake /home/straw/Documents/ultimate-reinforcement-learning/devel/share/lamp/cmake/lampConfig.cmake
+/home/straw/Documents/ultimate-reinforcement-learning/devel/.private/lamp/lib/pkgconfig/lamp.pc /home/straw/Documents/ultimate-reinforcement-learning/devel/lib/pkgconfig/lamp.pc

@@ -1,0 +1,6 @@
+devel_space: /home/straw/Documents/ultimate-reinforcement-learning/devel
+install: false
+install_space: /home/straw/Documents/ultimate-reinforcement-learning/install
+profile: default
+source_space: /home/straw/Documents/ultimate-reinforcement-learning/src
+workspace: /home/straw/Documents/ultimate-reinforcement-learning

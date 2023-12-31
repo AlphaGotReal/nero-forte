@@ -1,0 +1,1 @@
+/home/straw/Documents/ultimate-reinforcement-learning/devel/.private/robot_description/lib/pkgconfig/robot_description.pc
