@@ -10,7 +10,7 @@ from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker, MarkerArray
 from std_srvs.srv import Empty
 
-from skeleton import Agent, ActionSpace
+from skeleton import Agent
 
 use_weights = False if os.sys.argv[1][0].lower() == 'n' else f"{os.sys.argv[1]}.pth"
 store_weights = f"{os.sys.argv[2]}.pth"
@@ -23,16 +23,9 @@ class TrainerNode():
 
         # agent init
 
-        self.action_space = ActionSpace(
-            linear_vel_range=(0.0, 0.8),
-            linear_vel_buckets=2,
-            angular_vel_range=(-0.5, 0.5),
-            angular_vel_buckets=3
-        )
-
         self.agent = Agent(
             observation_dims=4,
-            n_actions=len(self.action_space),
+            n_actions=2,
             alpha=0.001,
             gamma=0.9,
             reuse=use_weights
@@ -51,8 +44,9 @@ class TrainerNode():
         self.episode = 0
         self.epochs = 0
         self.episode_return = 0
-        self.rewards = []
+
         self.observations = []
+        self.rewards = []
 
         # ros init
 
@@ -60,7 +54,7 @@ class TrainerNode():
         
         self.vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.goal_pub = rospy.Publisher("/goal", Marker, queue_size=1)
-        self.distribution_pub = rospy.Publisher("/distribution", MarkerArray, queue_size=1)
+        self.confidence_pub = rospy.Publisher("/confidence", Marker, queue_size=1)
 
         self.goal_marker = Marker()
         self.goal_marker.header.frame_id = "odom"
@@ -74,22 +68,18 @@ class TrainerNode():
         self.goal_marker.color.a = 1
         self.goal_marker.scale = Vector3(self.goal_tolerance, self.goal_tolerance, self.goal_tolerance)
 
-        self.distribution = MarkerArray()
-        for r in range(len(self.action_space)):
-            marker = Marker()
-            marker.header.frame_id = "odom"
-            marker.ns = str(r)
-            marker.id = r
-            marker.type = Marker.CYLINDER
-            marker.action = Marker.ADD
-            marker.color.r = 0
-            marker.color.g = 0
-            marker.color.b = 0
-            marker.color.a = 1
-            marker.scale = Vector3(0.1, 0.1, 0)
-            marker.pose.position = Point(r*0.1, 0, 4)
-
-            self.distribution.markers.append(marker)
+        self.confidence_bar = Marker()
+        self.confidence_bar.header.frame_id = "odom"
+        self.confidence_bar.ns = "confidence"
+        self.confidence_bar.id = 1
+        self.confidence_bar.type = Marker.CYLINDER
+        self.confidence_bar.action = Marker.ADD
+        self.confidence_bar.color.r = 1
+        self.confidence_bar.color.g = 0
+        self.confidence_bar.color.b = 0
+        self.confidence_bar.color.a = 1
+        self.confidence_bar.scale = Vector3(0.2, 0.2, 0)
+        self.confidence_bar.pose.position = Point(0, 0, 3)
 
     def get_odom(self, odom):
         self.odom = odom.pose.pose
@@ -128,29 +118,13 @@ class TrainerNode():
         transformed_dy = sin_transform_angle * dx + cos_transform_angle * dy
 
         state = [transformed_dx, transformed_dy, self.vel.linear.x, self.vel.angular.z]
-        return state, goal_steer_angle - bot_steer_angle, dx*dx + dy*dy # state, relative steer, distance 
+        return state, atan2(-transformed_dx, transformed_dy), dx*dx + dy*dy # state, relative steer, distance 
 
-    def update_distrubition(self, probabilities, stochastic_action):
-        for r in range(len(self.action_space)):
-            self.distribution.markers[r].scale.z = probabilities[0][r] * 6
-            self.distribution.markers[r].pose.position.z = 4 + probabilities[0][r] * 3
-            if (r == stochastic_action):
-                self.distribution.markers[r].color.g = 1
-                self.distribution.markers[r].color.r = 0
-            else:
-                self.distribution.markers[r].color.g = 0
-                self.distribution.markers[r].color.r = 1
+    def calculate_reward(self, distance, relative_steer):
 
-    def take_action(self, stochastic_action):
-        v, w = self.action_space[stochastic_action]
-        self.vel.linear.x = v
-        self.vel.angular.z = w
-        self.vel_pub.publish(self.vel)
-
-    def calculate_reward(self, relative_steer, distance):
-
-        reward = tanh(-sqrt(distance)*0.1 -abs(relative_steer)/pi * 0.25)-1
-        # open("rewards.txt", "a").write(str(reward) + "\n")
+        dR = sqrt(self.distance) - sqrt(distance)
+        dA = -abs(relative_steer)/pi
+        reward = tanh(dR*30 + dA)-1
         return reward
 
     def terminate_episode(self):
@@ -181,26 +155,24 @@ class TrainerNode():
         while (not rospy.is_shutdown()):
             if (self.goal is None):
                 self.generate_random_goal(5)
+                self.distance = 5*5
                 continue
 
             observation, relative_steer, distance = self.calculate_current_state()
-            stochastic_action, deterministic_action, probabilities = self.agent.choose_action(observation)
-            self.take_action(stochastic_action)
-            self.update_distrubition(probabilities, stochastic_action)
-
-            if (self.distance is None or self.steer is None):
-                self.steer = relative_steer
-                self.distance = distance
-                self.agent.probabilities = []
-                continue
-
-            reward = self.calculate_reward(relative_steer, distance)
-            self.episode_return += reward
+            mean, std, action = self.agent.choose_action(observation)
+            self.confidence_bar.scale.z = 1/std.sum().item()
+            self.confidence_bar.pose.position.z = 3 + 0.5/std.sum().item()
+            v, w = action
+            self.vel.linear.x = v 
+            self.vel.angular.z = w
+            self.vel_pub.publish(self.vel)
 
             self.epochs += 1
 
             reached = bool(distance < self.goal_tolerance*self.goal_tolerance)
-            time_up = bool(self.epochs >= 300)
+            reward = 1 if reached else self.calculate_reward(distance,relative_steer) 
+            self.episode_return += reward
+            time_up = bool(self.epochs >= 200)
 
             done = int(reached or time_up)
 
@@ -214,7 +186,7 @@ class TrainerNode():
                 self.terminate_episode()
 
             self.goal_pub.publish(self.goal_marker)
-            self.distribution_pub.publish(self.distribution)
+            self.confidence_pub.publish(self.confidence_bar)
             rate.sleep()
 
 if (__name__ == "__main__"):

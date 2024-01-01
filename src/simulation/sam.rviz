@@ -241,20 +241,12 @@ Visualization Manager:
         goal: true
       Queue Size: 100
       Value: true
-    - Class: rviz/MarkerArray
+    - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /distribution
-      Name: MarkerArray
+      Marker Topic: /confidence
+      Name: Marker
       Namespaces:
-        0: true
-        1: true
-        2: true
-        3: true
-        4: true
-        5: true
-        6: true
-        7: true
-        8: true
+        confidence: true
       Queue Size: 100
       Value: true
   Enabled: true
@@ -285,7 +277,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 19.418609619140625
+      Distance: 10.83447265625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -293,17 +285,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 1.1180368661880493
-        Y: 2.5633373260498047
-        Z: 0.4288753569126129
-      Focal Shape Fixed Size: true
+        X: -1.717431902885437
+        Y: 1.279167652130127
+        Z: 1.2954422235488892
+      Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7897970676422119
+      Pitch: 0.5597974061965942
       Target Frame: <Fixed Frame>
-      Yaw: 5.158576488494873
+      Yaw: 5.753582000732422
     Saved: ~
 Window Geometry:
   Displays:

@@ -1,0 +1,1 @@
+/home/straw/Documents/ultimate-reinforcement-learning/devel/.private/discrete_policy_gradient/lib/pkgconfig/discrete_policy_gradient.pc

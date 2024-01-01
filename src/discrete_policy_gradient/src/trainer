@@ -1,0 +1,223 @@
+#! /usr/bin/python3
+
+import os
+from random import random
+from math import sin, cos, tanh, atan2, sqrt, pi
+
+import rospy
+from geometry_msgs.msg import Point, Pose, Twist, Vector3
+from nav_msgs.msg import Odometry
+from visualization_msgs.msg import Marker, MarkerArray
+from std_srvs.srv import Empty
+
+from skeleton import Agent, ActionSpace
+
+use_weights = False if os.sys.argv[1][0].lower() == 'n' else f"{os.sys.argv[1]}.pth"
+store_weights = f"{os.sys.argv[2]}.pth"
+
+class TrainerNode():
+
+    def __init__(self):
+
+        rospy.init_node("trainer")
+
+        # agent init
+
+        self.action_space = ActionSpace(
+            linear_vel_range=(0.0, 0.8),
+            linear_vel_buckets=2,
+            angular_vel_range=(-0.5, 0.5),
+            angular_vel_buckets=3
+        )
+
+        self.agent = Agent(
+            observation_dims=4,
+            n_actions=len(self.action_space),
+            alpha=0.001,
+            gamma=0.9,
+            reuse=use_weights
+        )
+
+        self.distance:float = None
+        self.steer:float = None
+
+        self.goal_tolerance = 0.6
+
+        self.odom:Pose = None
+        self.goal:Pose = None
+
+        self.vel:Twist = Twist()
+
+        self.episode = 0
+        self.epochs = 0
+        self.episode_return = 0
+        self.rewards = []
+        self.observations = []
+
+        # ros init
+
+        rospy.Subscriber("/odom", Odometry, self.get_odom)
+        
+        self.vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+        self.goal_pub = rospy.Publisher("/goal", Marker, queue_size=1)
+        self.distribution_pub = rospy.Publisher("/distribution", MarkerArray, queue_size=1)
+
+        self.goal_marker = Marker()
+        self.goal_marker.header.frame_id = "odom"
+        self.goal_marker.ns = "goal"
+        self.goal_marker.id = 0
+        self.goal_marker.type = Marker.SPHERE
+        self.goal_marker.action = Marker.ADD
+        self.goal_marker.color.r = 0
+        self.goal_marker.color.g = 0
+        self.goal_marker.color.b = 1
+        self.goal_marker.color.a = 1
+        self.goal_marker.scale = Vector3(self.goal_tolerance, self.goal_tolerance, self.goal_tolerance)
+
+        self.distribution = MarkerArray()
+        for r in range(len(self.action_space)):
+            marker = Marker()
+            marker.header.frame_id = "odom"
+            marker.ns = str(r)
+            marker.id = r
+            marker.type = Marker.CYLINDER
+            marker.action = Marker.ADD
+            marker.color.r = 0
+            marker.color.g = 0
+            marker.color.b = 0
+            marker.color.a = 1
+            marker.scale = Vector3(0.1, 0.1, 0)
+            marker.pose.position = Point(r*0.1, 0, 4)
+
+            self.distribution.markers.append(marker)
+
+    def get_odom(self, odom):
+        self.odom = odom.pose.pose
+
+    def respawn(self):
+        try:
+            reset = rospy.ServiceProxy("/gazebo/reset_simulation", Empty)
+            reset()
+        except rospy.ServiceException as e:
+            print(f"{type(e): {e}}")
+
+    def generate_random_goal(self, distance):
+        if (self.odom is None):
+            return None
+
+        theta = random() * 2*pi
+        self.goal = Pose()
+        self.goal.position = Point(distance*cos(theta), distance*sin(theta), 0)
+        self.goal_marker.pose = self.goal
+
+    def calculate_current_state(self):
+        if (self.goal is None or self.odom is None):
+            return None
+
+        dx = self.goal.position.x - self.odom.position.x
+        dy = self.goal.position.y - self.odom.position.y
+
+        bot_steer_angle = atan2(self.odom.orientation.z, self.odom.orientation.w) * 2
+        goal_steer_angle = atan2(dy, dx)
+
+        transform_angle = pi/2 - bot_steer_angle
+        sin_transform_angle = sin(transform_angle)
+        cos_transform_angle = cos(transform_angle)
+
+        transformed_dx = cos_transform_angle * dx - sin_transform_angle * dy
+        transformed_dy = sin_transform_angle * dx + cos_transform_angle * dy
+
+        state = [transformed_dx, transformed_dy, self.vel.linear.x, self.vel.angular.z]
+        return state, goal_steer_angle - bot_steer_angle, dx*dx + dy*dy # state, relative steer, distance 
+
+    def update_distrubition(self, probabilities, stochastic_action):
+        for r in range(len(self.action_space)):
+            self.distribution.markers[r].scale.z = probabilities[0][r] * 6
+            self.distribution.markers[r].pose.position.z = 4 + probabilities[0][r] * 3
+            if (r == stochastic_action):
+                self.distribution.markers[r].color.g = 1
+                self.distribution.markers[r].color.r = 0
+            else:
+                self.distribution.markers[r].color.g = 0
+                self.distribution.markers[r].color.r = 1
+
+    def take_action(self, stochastic_action):
+        v, w = self.action_space[stochastic_action]
+        self.vel.linear.x = v
+        self.vel.angular.z = w
+        self.vel_pub.publish(self.vel)
+
+    def calculate_reward(self, relative_steer, distance):
+
+        reward = tanh(-sqrt(distance)*0.1)-1
+        return reward
+
+    def terminate_episode(self):
+
+        self.respawn()
+        self.agent.learn(self.observations, self.rewards)
+
+        print(f"episode: {self.episode} return: {self.episode_return} epochs: {self.epochs}")
+
+        self.episode = self.episode + 1
+        self.episode_return = 0
+        self.epochs = 0
+
+        self.observations = []
+        self.rewards = []
+
+        self.agent.save(store_weights)
+
+        self.odom = None
+        self.goal = None
+
+        self.distance = None
+        self.steer = None
+
+    def __call__(self):
+
+        rate = rospy.Rate(10)
+        while (not rospy.is_shutdown()):
+            if (self.goal is None):
+                self.generate_random_goal(5)
+                continue
+
+            observation, relative_steer, distance = self.calculate_current_state()
+            stochastic_action, deterministic_action, probabilities = self.agent.choose_action(observation)
+            self.take_action(stochastic_action)
+            self.update_distrubition(probabilities, stochastic_action)
+
+            if (self.distance is None or self.steer is None):
+                self.steer = relative_steer
+                self.distance = distance
+                self.agent.probabilities = []
+                continue
+
+            reward = self.calculate_reward(relative_steer, distance)
+            self.episode_return += reward
+
+            self.epochs += 1
+
+            reached = bool(distance < self.goal_tolerance*self.goal_tolerance)
+            time_up = bool(self.epochs >= 300)
+
+            done = int(reached or time_up)
+
+            self.observations.append(observation)
+            self.rewards.append(reward)
+
+            self.distance = distance
+            self.steer = relative_steer
+
+            if (done):
+                self.terminate_episode()
+
+            self.goal_pub.publish(self.goal_marker)
+            self.distribution_pub.publish(self.distribution)
+            rate.sleep()
+
+if (__name__ == "__main__"):
+
+    trainer = TrainerNode()
+    trainer()
+
